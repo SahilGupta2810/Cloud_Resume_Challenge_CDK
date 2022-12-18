@@ -5,10 +5,12 @@
     "cloud_resume_challenge_cdk": "bin/cloud_resume_challenge_cdk.js"
   },
   "scripts": {
+    "start":"npm run build && cdk synth && cdk deploy",
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "npm start": "npm run build && cdk synth && cdk deploy"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",
