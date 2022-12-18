@@ -17,7 +17,8 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
     {
       bucketName: "resume-storage-ap-south-1",
       websiteIndexDocument: "index.html",
-      publicReadAccess: true
+      publicReadAccess: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     } );
 
     new S3Deployment.BucketDeployment(this, "bucket-Deployment", {
@@ -28,5 +29,11 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
     new cdk.CfnOutput(this, "BucketDomain", {
       value: bucket.bucketWebsiteDomainName,
     });
+
+    //Configure Cloudfront 
+    //Configure Route53
+    //Enable CORS
+    //
+
   }
 }
