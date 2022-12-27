@@ -21,7 +21,8 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
         bucketName: "resume-storage-ap-south-1",
         websiteIndexDocument: "index.html",
         publicReadAccess: true,
-        removalPolicy: cdk.RemovalPolicy.DESTROY
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+        versioned: true
       });
 
     new S3Deployment.BucketDeployment(this, "bucket-Deployment", {
@@ -40,6 +41,7 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
         origin: new origins.S3Origin(bucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
+
       defaultRootObject: "index.html"
     }); 
     //Configure Route53
