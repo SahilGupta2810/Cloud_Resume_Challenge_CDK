@@ -297,6 +297,8 @@ a.back-to-top:focus {
 
 .section-padding {
   padding: 60px 0;
+  margin-left: -40px;
+  margin-top: -40px;
 }
 
 #about .img-thumb img {
@@ -1198,7 +1200,7 @@ a:not([href]):not([tabindex]):hover {
 .checklist-title {
   font-size: 20px;
   text-transform: uppercase;
-  margin-left: 25px;
+  margin-left: 40px;
   padding-bottom: 10px;
 }
 
@@ -1254,7 +1256,7 @@ li::before {
   border: 1px solid #00b4d9;
   border-spacing: 20px;
   padding: 20px;
-  margin-top: 6rem;
+  margin-top: 1rem;
   border-width: 2px;
 }
 
