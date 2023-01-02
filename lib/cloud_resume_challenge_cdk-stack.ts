@@ -6,12 +6,11 @@ import * as S3Deployment from 'aws-cdk-lib/aws-s3-deployment';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as cfTarget from 'aws-cdk-lib/aws-route53-targets';
 import * as cert from 'aws-cdk-lib/aws-certificatemanager';
-import { TargetTrackingScalingPolicy } from 'aws-cdk-lib/aws-applicationautoscaling';
-import { DomainName } from 'aws-cdk-lib/aws-apigateway';
-import { Domain } from 'domain';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 
 
@@ -26,86 +25,84 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
         bucketName: "sgupta.cloud",
         websiteIndexDocument: "index.html",
         //publicReadAccess: true,
-        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ACLS,
         removalPolicy: cdk.RemovalPolicy.DESTROY,
-        versioned: true,
+        versioned: false,
       });
 
-    //Note that after making changes to your Website files like html , css or JS files, 
-    //you need to deploy the changes to the bucket before each deployment. With the help of CLI cmd : aws s3 sync folder_name s3://bucket_name
-    //I was able to acheive this , but usually it should be automated alog with stack creation / deployment / redeployment
-    // BucketDeployment helps in achieving that using cdk. It helps to sync our changes in s3 bucket with the folder we specify.
+    //After making changes to your website files (e.g. html, css, or JS), you need to deploy those changes to your S3 bucket before each deployment. 
+    //You can do this manually using the AWS CLI command "aws s3 sync folder_name s3://bucket_name," but it is often more convenient to automate this process using BucketDeployment, a tool provided by CDK that syncs your specified folder with the S3 bucket. 
+    //This helps streamline the process of creating, deploying, and redeploying your stack.
     new S3Deployment.BucketDeployment(this, "bucket-Deployment", {
       sources: [S3Deployment.Source.asset("./resume-site")],
       destinationBucket: bucket
     });
 
-    //Import Certificate using ACM
-    const certificateArn = "arn:aws:acm:us-east-1:160902316896:certificate/de7fe76e-112c-492b-bef5-dab6ff56a520"
-    const certificate = cert.Certificate.fromCertificateArn(this, 'CertificateImported', certificateArn);
+    //Import Certificate from Amazon CertificateManager
+    const certificateArn = "arn:aws:acm:us-east-1:160902316896:certificate/e55ba472-f1d2-4805-995a-1bd3d1c0a542";
+    const certificate = cert.Certificate.fromCertificateArn(this, 'Imported-certificate', certificateArn);
+    // const certificate = cert.Certificate.fromCertificateArn(
+    //   this, 
+    //   'Imported-certificate',
+    //   "arn:aws:acm:us-east-1:160902316896:certificate/e55ba472-f1d2-4805-995a-1bd3d1c0a542" );
 
-
-    //Configure { HostedZone } in Route53
     const zone = new route53.PublicHostedZone(this, 'Hosted-zone', {
       zoneName: 'sgupta.cloud',
-      comment: 'The hosted zone is used for resume hosted on AWS'
+      comment: 'The hosted zone is used by Cloud Resume Challenge CloudFront Distribution'
     });
+
+    //Create a Certificate from Amazon Certificate Manager
+    // const certificateArn = new cert.DnsValidatedCertificate(this, 'Certificate', {
+    //     domainName: "resume.sgupta.cloud",
+    //     hostedZone: zone,
+    //     region: 'us-east-1'
+    // })
+
+    //Configure { HostedZone } in Route53
+
 
 
     // Configure { OAI, Distribution } in CloudFront 
-
-
-    //Configure CloudFront
-    const OAI = new cloudfront.OriginAccessIdentity(this, 'resume_OAI', {
-      comment: 'comment'
+    const OAI = new cloudfront.OriginAccessIdentity(this, 'Cloud_Resume_OAI', {
+      comment: 'The OAI is used for Cloud Resume Challenge OAI'
     }
     );
 
-    // const cfDistribution = new cloudfront.Distribution(this, 'myDistribution-cdk', {
-    //   defaultBehavior: {
-    //     origin: new origins.S3Origin(bucket),
-    //     viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-    //   },
-    //   defaultRootObject: "index.html",
-    //   certificate: certificate,
-    //   domainNames: [zone.zoneName],
-    //   //Add Error response
-    //});
-    const cfWebDistribution = new cloudfront.CloudFrontWebDistribution(this, 'myDistribution-cdk', {
-      originConfigs: [
-        {
-          s3OriginSource: {
-            s3BucketSource: bucket,
-            originAccessIdentity: OAI
-          },
-          behaviors: [
-            {
-              viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-              allowedMethods: cloudfront.CloudFrontAllowedMethods.GET_HEAD,
-              compress: true,
-              isDefaultBehavior: true,
-            }
-          ]
-        }
-      ],
-
-    })
-    //Create { ARecord , AAAARecord , CNAME Record , ALIAS } in Route53
-    const cNameRecord = new route53.CnameRecord(this, 'CnameRecord', {
-      zone,
-      recordName: 'resume.sgupta.cloud',
-      domainName: cfWebDistribution.distributionDomainName
-    })
-
+    //Configure CloudFront
+    const cfDistribution = new cloudfront.Distribution(this, 'myDistribution-cdk', {
+      defaultBehavior: {
+        origin: new origins.S3Origin(bucket, {
+          originAccessIdentity: OAI,
+        }),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS
+      },
+      defaultRootObject: 'index.html',
+      certificate: certificate,
+      domainNames: [zone.zoneName],
+      comment: 'This is the CloudFront Distribution for Cloud Resume Challenge'
+    });
 
     //Create { ARecord , AAAARecord , CNAME Record , ALIAS } in Route53
     // const cNameRecord = new route53.CnameRecord(this, 'CnameRecord', {
     //   zone,
-    //   recordName: 'resume.sgupta.cloud',
-    //   domainName: cfDistribution.distributionDomainName
+    //   recordName: 'sgupta.cloud',
+    //   domainName: cfDistribution.domainName,
+    // });
+    // new route53.ARecord(this, 'ARecord', {
+    //   zone,
+    //   recordName: 'sgupta.cloud',
+    //   target: route53.RecordTarget.fromAlias(new cdk.aws_route53_targets.CloudFrontTarget()),
+    //   comment: 'This is the A Record for Cloud Resume Challenge',
+
+
+
     // })
-
-
+    new route53.ARecord(this, 'ARecord', {
+      zone,
+      recordName: 'sgupta.cloud',
+      target: route53.RecordTarget.fromAlias(new cfTarget.CloudFrontTarget(cfDistribution)),
+    })
     //Restrict access to S3 
     bucket.addToResourcePolicy(
       new iam.PolicyStatement({
@@ -129,10 +126,26 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
       },
       deployOptions: {
         stageName: 'dev'
-      }
+      },
+      retainDeployments: false
+    });
+
+    //Create Lambda 
+    const GetFn = new lambda.Function(this, 'GetFn', {
+      functionName: 'GetFn', 
+      runtime: lambda.Runtime.NODEJS_14_X,
+      code: lambda.Code.fromAsset('lambda/get'),
+      handler: 'get.handler',
+      environment: {
+        'BUCKET_NAME': bucket.bucketName,
+        'TABLE_NAME': 'Resume-Table'
+      },
+      timeout: cdk.Duration.seconds(30)
+
     })
 
-    //Add Method in API Gateway [GET , POST ]
+
+    //Add GET Method in API gateway with Lambda Integration
 
     //Create and configure DyanamoDB Table
     const table = new dynamodb.Table(this, 'Cloud-Resume-Challenge', {
@@ -141,16 +154,14 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
       partitionKey: {
         name: 'ID',
         type: dynamodb.AttributeType.STRING
-      }
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     })
 
 
     //Output 
-    // new cdk.CfnOutput(this, "Resources Endpoints", {
-    //   value: cfDistribution.distributionDomainName
-    // });
     new cdk.CfnOutput(this, "Resources Endpoints", {
-      value: cfWebDistribution.distributionDomainName
+      value: cfDistribution.distributionDomainName
     });
     new cdk.CfnOutput(this, "OAI", {
       value: OAI.originAccessIdentityId
