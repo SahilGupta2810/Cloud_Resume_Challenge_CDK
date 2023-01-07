@@ -24,8 +24,8 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
       {
         bucketName: "sgupta.cloud",
         websiteIndexDocument: "index.html",
-        //publicReadAccess: true,
-        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ACLS,
+        publicReadAccess: true,
+        //blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
         removalPolicy: cdk.RemovalPolicy.DESTROY,
         versioned: false,
       });
@@ -131,18 +131,18 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
     });
 
     //Create Lambda 
-    const GetFn = new lambda.Function(this, 'GetFn', {
-      functionName: 'GetFn', 
-      runtime: lambda.Runtime.NODEJS_14_X,
-      code: lambda.Code.fromAsset('lambda/get'),
-      handler: 'get.handler',
-      environment: {
-        'BUCKET_NAME': bucket.bucketName,
-        'TABLE_NAME': 'Resume-Table'
-      },
-      timeout: cdk.Duration.seconds(30)
+    // const GetFn = new lambda.Function(this, 'GetFn', {
+    //   functionName: 'GetFn', 
+    //   runtime: lambda.Runtime.NODEJS_14_X,
+    //   code: lambda.Code.fromAsset('lambda/get'),
+    //   handler: 'handler.put',
+    //   environment: {
+    //     'BUCKET_NAME': bucket.bucketName,
+    //     'TABLE_NAME': 'Resume-Table'
+    //   },
+    //   timeout: cdk.Duration.seconds(30)
 
-    })
+    // })
 
 
     //Add GET Method in API gateway with Lambda Integration
