@@ -11,6 +11,8 @@ import * as cert from 'aws-cdk-lib/aws-certificatemanager';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { Integration } from 'aws-cdk-lib/aws-apigateway';
+import path = require('path');
 
 
 
@@ -84,25 +86,12 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
     });
 
     //Create { ARecord , AAAARecord , CNAME Record , ALIAS } in Route53
-    // const cNameRecord = new route53.CnameRecord(this, 'CnameRecord', {
-    //   zone,
-    //   recordName: 'sgupta.cloud',
-    //   domainName: cfDistribution.domainName,
-    // });
-    // new route53.ARecord(this, 'ARecord', {
-    //   zone,
-    //   recordName: 'sgupta.cloud',
-    //   target: route53.RecordTarget.fromAlias(new cdk.aws_route53_targets.CloudFrontTarget()),
-    //   comment: 'This is the A Record for Cloud Resume Challenge',
-
-
-
-    // })
     new route53.ARecord(this, 'ARecord', {
       zone,
       recordName: 'sgupta.cloud',
       target: route53.RecordTarget.fromAlias(new cfTarget.CloudFrontTarget(cfDistribution)),
     })
+
     //Restrict access to S3 
     bucket.addToResourcePolicy(
       new iam.PolicyStatement({
@@ -112,7 +101,6 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
         resources: [`${bucket.bucketArn}/*`],
       }),
     );
-
 
     //Create API Gateway
     const api = new apigateway.RestApi(this, 'cloud-api', {
@@ -130,22 +118,39 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
       retainDeployments: false
     });
 
-    //Create Lambda 
-    // const GetFn = new lambda.Function(this, 'GetFn', {
-    //   functionName: 'GetFn', 
-    //   runtime: lambda.Runtime.NODEJS_14_X,
-    //   code: lambda.Code.fromAsset('lambda/get'),
-    //   handler: 'handler.put',
-    //   environment: {
-    //     'BUCKET_NAME': bucket.bucketName,
-    //     'TABLE_NAME': 'Resume-Table'
-    //   },
-    //   timeout: cdk.Duration.seconds(30)
+    //Create Lambda GetFn
+    const GetFn = new lambda.Function(this, 'GetFn', {
+      functionName: 'GetFn', 
+      runtime: lambda.Runtime.NODEJS_14_X,
+      code: lambda.Code.fromAsset(path.join(__dirname, '../src/Get-data')),
+      handler: 'index.getFn',
+      environment: {
+        'BUCKET_NAME': bucket.bucketName,
+        'TABLE_NAME': 'Cloud-Resume-Challenge'
+      },
+      timeout: cdk.Duration.seconds(30)
+    })
 
-    // })
+    //Create Lambda PostFn
+    const PostFn = new lambda.Function(this, 'PostFn', {
+      functionName: 'PostFn', 
+      runtime: lambda.Runtime.NODEJS_14_X,
+      code: lambda.Code.fromAsset(path.join(__dirname, '../src/Post-data')),
+      handler: 'index.postFn',
+      environment: {
+        'BUCKET_NAME': bucket.bucketName,
+        'TABLE_NAME': 'Cloud-Resume-Challenge'
+      },
+      timeout: cdk.Duration.seconds(30)
+    })
 
-
-    //Add GET Method in API gateway with Lambda Integration
+    //Create a resource and add GET , POST method to it with Lambda integration
+    api.root.addMethod(
+      'GET', 
+      new apigateway.LambdaIntegration(GetFn , {proxy:true}))
+    api.root.addMethod(
+      'POST', 
+      new apigateway.LambdaIntegration(PostFn , {proxy: true}))
 
     //Create and configure DyanamoDB Table
     const table = new dynamodb.Table(this, 'Cloud-Resume-Challenge', {
@@ -157,6 +162,10 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
       },
       removalPolicy: cdk.RemovalPolicy.DESTROY
     })
+
+    //Grant read permission to GetFn and read / write permission to PostFn
+    table.grantReadData(GetFn)
+    table.grantReadWriteData(PostFn)
 
 
     //Output 
