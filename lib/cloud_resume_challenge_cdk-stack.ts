@@ -26,8 +26,8 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
       {
         bucketName: "sgupta.cloud",
         websiteIndexDocument: "index.html",
-        publicReadAccess: true,
-        //blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        publicReadAccess: false,
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
         removalPolicy: cdk.RemovalPolicy.DESTROY,
         versioned: false,
       });
@@ -144,7 +144,8 @@ export class CloudResumeChallengeCdkStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30)
     })
 
-    //Create a resource and add GET , POST method to it with Lambda integration
+    //Create methods: GET and POST 
+    //Integrate it with Lambda Function
     api.root.addMethod(
       'GET', 
       new apigateway.LambdaIntegration(GetFn , {proxy:true}))
