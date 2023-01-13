@@ -1,0 +1,39 @@
+name: Deploy CDK
+
+on:
+  push:
+    branches:
+      - release-1
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    - name: Configure aws credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: "ap-south-1"
+
+    - name: Install dependencies
+      run: npm i 
+
+    - name: Install CDK
+      run: npm i aws-cdk
+
+    - name: Build the CDK app
+      run: npm run build
+
+    - name: Deploy the CDK app
+      run: npx cdk deploy
+
